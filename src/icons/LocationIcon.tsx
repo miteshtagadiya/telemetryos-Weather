@@ -1,0 +1,24 @@
+type LocationIconProps = {
+  size?: number;
+  color?: string;
+};
+
+export const LocationIcon: React.FC<LocationIconProps> = ({
+  size = 24,
+  color = "currentColor",
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M21 10c0 6-9 12-9 12S3 16 3 10a9 9 0 1 1 18 0z" />
+    <circle cx="12" cy="10" r="3" />
+  </svg>
+);
