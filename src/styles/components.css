@@ -369,6 +369,13 @@
 .gap-5 { gap: var(--space-5); }
 .gap-6 { gap: var(--space-6); }
 
+.m-1 { margin: var(--space-1); }
+.m-2 { margin: var(--space-2); }
+.m-3 { margin: var(--space-3); }
+.m-4 { margin: var(--space-4); }
+.m-5 { margin: var(--space-5); }
+.m-6 { margin: var(--space-6); }
+
 /* ===================
    FLEX UTILITIES
    =================== */
@@ -380,3 +387,18 @@
 .items-center { align-items: center; }
 .justify-center { justify-content: center; }
 .justify-between { justify-content: space-between; }
+
+/* ===================
+   TRANSITION UTILITIES
+   =================== */
+
+.transition-base { transition: var(--transition-base); }
+.transition-fast { transition: var(--transition-fast); }
+.transition-slow { transition: var(--transition-slow); }
+
+/* ===================
+   BORDER UTILITIES
+   =================== */
+
+.border-2 { border-width: 2px; }
+.cursor-pointer { cursor: pointer; }

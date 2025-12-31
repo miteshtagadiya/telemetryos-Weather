@@ -16,6 +16,11 @@
   --color-accent: #F8B334;
   --color-accent-muted: #C9C1B1;
 
+  /* Primary - TelemetryOS Brand Color */
+  --color-primary: hsl(201, 96%, 32%);
+  --color-primary-hover: hsl(201, 96%, 28%);
+  --color-primary-active: hsl(201, 96%, 24%);
+
   /* Semantic */
   --color-success: hsl(142, 76%, 36%);
   --color-warning: hsl(45, 93%, 47%);
