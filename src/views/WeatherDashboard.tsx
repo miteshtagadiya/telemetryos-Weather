@@ -1,8 +1,10 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { weatherIcons } from "./weatherIcons";
 import { LocationIcon } from "../icons/LocationIcon";
 import { WindIcon } from "../icons/WindIcon";
 import { HumidityIcon } from "../icons/HumidityIcon";
+import { PressureIcon } from "../icons/PressureIcon";
+import { RainIcon } from "../icons/RainIcon";
 
 interface CurrentWeather {
   city: string;
@@ -35,7 +37,7 @@ interface Props {
   forecast: ForecastDay[];
   view: "24H" | "3D" | "1W";
   setView: React.Dispatch<React.SetStateAction<"24H" | "3D" | "1W">>;
-  backgroundType?: "solid" | "weather" | "image";
+  backgroundType?: "solid" | "weather" | "image" | "video";
   backgroundColor?: string;
   backgroundImage?: string;
   backgroundOpacity?: number;
@@ -44,34 +46,8 @@ interface Props {
 }
 
 const convertTemp = (temp: number, unit: "C" | "F"): number => {
-  if (unit === "F") {
-    return Math.round((temp * 9) / 5 + 32);
-  }
+  if (unit === "F") return Math.round((temp * 9) / 5 + 32);
   return Math.round(temp);
-};
-
-const getWindDirection = (degrees?: number): string => {
-  if (degrees === undefined) return "";
-  const directions = [
-    "N",
-    "NNE",
-    "NE",
-    "ENE",
-    "E",
-    "ESE",
-    "SE",
-    "SSE",
-    "S",
-    "SSW",
-    "SW",
-    "WSW",
-    "W",
-    "WNW",
-    "NW",
-    "NNW",
-  ];
-  const index = Math.round(degrees / 22.5) % 16;
-  return directions[index];
 };
 
 const getWeatherBackground = (
@@ -79,20 +55,24 @@ const getWeatherBackground = (
   type: "solid" | "weather" | "image"
 ): string => {
   if (type !== "weather") return "";
-
-  // Weather-based background gradients
   const weatherGradients: Record<string, string> = {
-    "4": "linear-gradient(180deg, #87CEEB, #B0C4DE)", // Broken clouds
-    "8": "linear-gradient(180deg, #708090, #778899)", // Overcast
-    "18": "linear-gradient(180deg, #4682B4, #5F9EA0)", // Light rain
-    "19": "linear-gradient(180deg, #4169E1, #6495ED)", // Moderate rain
-    "20": "linear-gradient(180deg, #191970, #000080)", // Heavy rain
-    "11": "linear-gradient(180deg, #2F4F4F, #1C1C1C)", // Thunderstorm
-    "13": "linear-gradient(180deg, #E0E0E0, #F5F5F5)", // Snow
+    "4": "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)", // Broken clouds
+    "8": "linear-gradient(135deg, #cfd9df 0%, #e2ebf0 100%)", // Overcast clouds
+    "18": "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)", // Light rain
+    "19": "linear-gradient(135deg, #5c7cfa 0%, #3b5bdb 100%)", // Moderate rain
+    "20": "linear-gradient(135deg, #364fc7 0%, #1e3a8a 100%)", // Heavy rain
+    "11": "linear-gradient(135deg, #434343 0%, #000000 100%)", // Thunderstorm
+    "13": "linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%)", // Snow
+    default: "linear-gradient(135deg, #2b6cb0, #63b3ed)", // Default sky blue
   };
-
-  return weatherGradients[code] || "linear-gradient(180deg, #2b6cb0, #63b3ed)";
+  return weatherGradients[code] || weatherGradients["default"];
 };
+
+export const GLASS_GRADIENT = `
+  radial-gradient(circle at 50% 50%, rgba(79, 172, 254, 0.18) 0%, transparent 75%),
+  radial-gradient(at 0% 0%, rgba(79, 172, 254, 0.12) 0px, transparent 50%),
+  radial-gradient(at 100% 100%, rgba(255, 0, 128, 0.08) 0px, transparent 50%)
+  `;
 
 export const WeatherDashboard: React.FC<Props> = ({
   current,
@@ -106,30 +86,64 @@ export const WeatherDashboard: React.FC<Props> = ({
   fontColor = "#ffffff",
   temperatureUnit = "C",
 }) => {
+  // Calculate dynamic icon size based on window width
+  const [iconSize, setIconSize] = useState(150);
+  const [forecastIconSize, setForecastIconSize] = useState(50);
+
+  useEffect(() => {
+    const handleResize = () => {
+      // Logic: If screen is small (mobile), make icon smaller. If Projector/Desktop, huge.
+      const minDimension = Math.min(window.innerWidth, window.innerHeight);
+      setIconSize(Math.max(100, minDimension * 0.25)); // 25% of screen minimum dimension
+      setForecastIconSize(Math.max(40, minDimension * 0.08)); // 8% for forecast icons
+    };
+
+    window.addEventListener("resize", handleResize);
+    handleResize(); // Init
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const getBackgroundStyle = () => {
     let bg = "";
-
     if (backgroundType === "image" && backgroundImage) {
       bg = `url(${backgroundImage})`;
     } else if (backgroundType === "weather") {
       bg = getWeatherBackground(current.code, "weather");
-    } else {
+    } else if (backgroundType === "solid") {
       bg = backgroundColor;
     }
-
     return {
-      background: bg,
-      backgroundSize: backgroundType === "image" ? "cover" : "auto",
+      background: bg || "transparent",
+      backgroundSize: "cover",
       backgroundPosition: "center",
-      backgroundRepeat: "no-repeat",
       color: fontColor,
       position: "relative" as const,
     };
   };
 
   const getGreeting = (time: string): string => {
-    // expected format: "HH:MM" (24 hour)
-    const hour = parseInt(time.split(":")[0], 10);
+    let hour = 0;
+
+    // Check if time contains AM/PM (12-hour format)
+    if (
+      time.toLowerCase().includes("am") ||
+      time.toLowerCase().includes("pm")
+    ) {
+      const [timePart, modifier] = time.split(" ");
+      let [h] = timePart.split(":");
+      hour = parseInt(h, 10);
+
+      if (modifier.toLowerCase() === "pm" && hour !== 12) {
+        hour += 12;
+      }
+      if (modifier.toLowerCase() === "am" && hour === 12) {
+        hour = 0;
+      }
+    }
+    // Otherwise assume 24-hour format
+    else {
+      hour = parseInt(time.split(":")[0], 10);
+    }
 
     if (hour >= 5 && hour < 12) return "Good Morning";
     if (hour >= 12 && hour < 17) return "Good Afternoon";
@@ -137,180 +151,217 @@ export const WeatherDashboard: React.FC<Props> = ({
     return "Good Night";
   };
 
-  const getBackgroundOverlayStyle = () => {
-    // Overlay to control opacity - darker overlay = less visible background
-    const opacity = (100 - backgroundOpacity) / 100;
-    return {
-      position: "absolute" as const,
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: `rgba(0, 0, 0, ${Math.max(0, Math.min(1, opacity))})`,
-      pointerEvents: "none" as const,
-      zIndex: 0,
-    };
+  const overlayStyle = {
+    position: "absolute" as const,
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    backgroundColor: `rgba(0,0,0, ${1 - backgroundOpacity / 100})`,
+    zIndex: 1,
   };
 
   const displayTemp = convertTemp(current.temp, temperatureUnit);
-  const displayFeelsLike = current.feelsLike
-    ? convertTemp(current.feelsLike, temperatureUnit)
-    : undefined;
+  const displayPressure = current.Pressure;
+  const displayForecast =
+    view === "24H" ? [...forecast, ...forecast] : forecast;
+  const marqueeDuration = `${forecast.length * 3}s`;
+
+  const backgroundStyle = getBackgroundStyle();
 
   return (
-    <div className="weather-dashboard" style={getBackgroundStyle()}>
-      <div style={getBackgroundOverlayStyle()}></div>
-      <div style={{ position: "relative", zIndex: 1 }}>
-        <div className="weather-top-bar">
-          <div className="location-info">
-            <LocationIcon size={32} />
-            <span className="city-name">{current.city}</span>
+    <div className="weather-dashboard" style={backgroundStyle}>
+      {/* BACKGROUND MEDIA LAYER */}
+      <div className="bg-media-container">
+        {backgroundType === "image" && backgroundImage && (
+          <img src={backgroundImage} className="bg-image" alt="bg" />
+        )}
+        {backgroundType === "video" && backgroundImage && (
+          <video autoPlay loop muted playsInline className="bg-video">
+            <source src={backgroundImage} type="video/mp4" />
+          </video>
+        )}
+        {/* OPACITY OVERLAY - Show for all background types when opacity < 100 */}
+        {backgroundOpacity < 100 && (
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backgroundColor: `rgba(0,0,0, ${1 - backgroundOpacity / 100})`,
+              zIndex: 1,
+            }}
+          />
+        )}
+      </div>
+      <div
+        style={{
+          position: "relative",
+          zIndex: 2,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          height: "100%",
+        }}
+      >
+        {/* HEADER SECTION */}
+        <header className="weather-top-bar glass-panel">
+          <div className="location-group">
+            <div className="location-city-container">
+              <LocationIcon size={32} />
+              <span className="city-name">{current.city}</span>
+              <span className="current-date-text">| {current.date}</span>
+            </div>
           </div>
-
-          <span className="current-date">{current.date}</span>
-
-          <div className="date-time">
-             <div className="greeting">{getGreeting(current.time)}</div>
-            <span className="time">{current.time}</span>
+          {/* <div className="greeting">{getGreeting(current.time)}</div> */}
+          <div className="time-group">
+            <div className="time">{current.time}</div>
           </div>
-        </div>
-        {/* Top Section */}
-        <div className="current-weather">
-          <div className="current-left">
-            <div className="current-center">
-              <div className="main-icon">
-                {weatherIcons[current.code]?.({ size: 250 })}
-              </div>
+        </header>
+
+        {/* MAIN HERO SECTION */}
+        <main className="hero-section">
+          {/* ITEM 1: Temperature (Now Fixed to the Left) */}
+          <div className="main-display">
+            <div>
+            <h1 className="main-temp-value">
+              {displayTemp}°{temperatureUnit}
+            </h1>
+            <p className="condition-text">{current.condition}</p>
+            </div>
+            <div className="weather-icon-main" style={{ marginBottom: "1vh" }}>
+              {weatherIcons[current.code]?.({ size: 140 })}
             </div>
           </div>
 
-          <div className="current-center">
-            <div className="temperature-section">
-              <div className="temperature-content">
-                <div className="temp-display">
-                  <span className="main-temp-value">{displayTemp}</span>
-                  <span className="temp-unit">°{temperatureUnit}</span>
-                </div>
-                <p className="condition-text">{current.condition}</p>
-                {displayFeelsLike !== undefined && (
-                  <p className="feels-like">
-                    Feels like {displayFeelsLike}°{temperatureUnit}
-                  </p>
-                )}
+          {/* ITEM 2: Metrics Group (Fixed to the Right) */}
+          <div className="metrics-container-right">
+            {/* Left Column of Stats */}
+            <div className="hero-left">
+              <div className="metric-card glass-panel">
+                <span className="metric-label">Wind Velocity</span>
+                <p className="metric-value">
+                <WindIcon size={30}/> 
+                  {current.WindSpeed}
+                  <span className="metric-unit">mph</span>
+                </p>
               </div>
-              <div className="weather-metrics-inline">
-                <div className="metric-inline">
-                  <WindIcon size={36} />
-                  <span className="metric-value-inline">
-                    {current.WindSpeed} <span className="metric-unit-inline">km/h</span>
-                  </span>
-                </div>
-                {current.Humidity !== undefined && (
-                  <div className="metric-inline">
-                    <HumidityIcon size={36} />
-                    <span className="metric-value-inline">
-                      {current.Humidity} <span className="metric-unit-inline">%</span>
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
 
-          <div className="current-right">
-            {displayFeelsLike !== undefined && (
-              <div className="metric">
-                <span className="label">Feels Like</span>
-                <span className="value">
-                  {displayFeelsLike}°{temperatureUnit}
-                </span>
-              </div>
-            )}
-
-            {/* {current.Humidity !== undefined && (
-              <div className="metric">
-                <span className="label">Humidity</span>
-                <span className="value">
+              <div className="metric-card glass-panel">
+                <span className="metric-label">Humidity</span>
+                <p className="metric-value">
+                <HumidityIcon size={35}/>
                   {current.Humidity}
                   <span className="metric-unit">%</span>
-                </span>
+                </p>
               </div>
-            )}
-
-            <div className="metric">
-              <span className="label">Wind</span>
-              <span className="value">
-                {current.WindSpeed}
-                <span className="metric-unit">km/h</span>
-                {current.WindDirection !== undefined && (
-                  <span className="metric-unit" style={{ marginLeft: "4px" }}>
-                    {getWindDirection(current.WindDirection)}
-                  </span>
-                )}
-              </span>
-            </div> */}
-
-            <div className="metric">
-              <span className="label">Pressure</span>
-              <span className="value">
-                {current.Pressure}
-                <span className="metric-unit">hPa</span>
-              </span>
             </div>
 
-            <div className="metric">
-              <span className="label">Precipitation</span>
-              <span className="value">
-                {current.Precip}
-                <span className="metric-unit">mm</span>
-                {current.PrecipChance !== undefined && (
-                  <span className="metric-unit" style={{ marginLeft: "4px" }}>
-                    ({current.PrecipChance}%)
-                  </span>
-                )}
-              </span>
+            {/* Right Column of Stats */}
+            <div className="hero-right">
+              <div className="metric-card glass-panel">
+                <span className="metric-label">Pressure</span>
+                <p className="metric-value">
+                <PressureIcon size={30}/>
+                  {displayPressure}
+                  <span className="metric-unit">hPa</span>
+                </p>
+              </div>
+              <div className="metric-card glass-panel">
+                <span className="metric-label">Precipitation</span>
+                <p className="metric-value">
+                <RainIcon size={30} />
+                  {current.Precip}
+                  <span className="metric-unit">mm</span>
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        </main>
 
-        <div className="forecast-header">
-          {["1W", "3D", "24H"].map((v) => (
+        {/* SCROLLABLE FORECAST SECTION */}
+        <footer className="forecast-section glass-panel">
+          <div className="forecast-header">
+            <span>
+              {view === "24H" ? "HOURLY FORECAST" : "EXTENDED OUTLOOK"}
+            </span>
             <div
-              key={v}
-              className={`forecast-toggle ${view === v ? "active" : ""}`}
-              onClick={() => setView(v as "24H" | "3D" | "1W")}
+              className="toggle-group"
+              style={{ display: "flex", gap: "0.9375rem" }}
             >
-              {v}
+              {["24H", "3D", "1W"].map((v) => (
+                <div
+                  key={v}
+                  className={`forecast-toggle ${view === v ? "active" : ""}`}
+                  style={{
+                    background: view === v ? "rgba(255,255,255,0.1)" : "none",
+                    border: "none",
+                    padding: "0.3125rem 0.9375rem",
+                    borderRadius: "1.25rem",
+                    cursor: "pointer",
+                    fontSize: "2vmin",
+                    fontWeight: "bold",
+                    transition: "0.3s",
+                  }}
+                  onClick={() => setView(v as any)}
+                >
+                  {v}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-
-        <div className="forecast-row">
-          {forecast.map((day, i) => (
-            <div key={i} className="forecast-card">
-              <p className="day">{day.day}</p>
-              <p className="forecast-condition">{day.condition}</p>
-              <div className="icon">
-                {weatherIcons[day.code]?.({ size: 100 })}
-              </div>
-              {view === "24H" && (
-                <p className="temp-max">
-                  {convertTemp(day.temp, temperatureUnit)}°{temperatureUnit}
-                </p>
-              )}
-              {view !== "24H" && (
-                <>
-                  <p className="temp-max">
-                    {convertTemp(day.max, temperatureUnit)}°{temperatureUnit}
-                  </p>
-                  <p className="temp-min">
-                    {convertTemp(day.min, temperatureUnit)}°{temperatureUnit}
-                  </p>
-                </>
-              )}
+          </div>
+          {/* Apply marquee classes conditionally */}
+          <div
+            className="forecast-row"
+            style={{ overflow: view === "24H" ? "hidden" : "auto" }}
+          >
+            <div
+              className={`marquee-container ${
+                view === "24H" ? "marquee-active" : ""
+              }`}
+              style={{
+                // @ts-ignore (Passing dynamic duration to CSS variable)
+                "--MarqueeDuration": marqueeDuration,
+              }}
+            >
+              {displayForecast.map((day, i) => (
+                <div key={`${day.day}-${i}`} className="forecast-card">
+                  <span className="forecast-day">{day.day}</span>
+                  <span
+                    className="forecast-condition"
+                    style={{ fontSize: "2.3vmin" }}
+                  >
+                    {day.condition}
+                  </span>
+                  {weatherIcons[day.code]?.({ size: 70 })}
+                  <div className="forecast-temps">
+                    <span>
+                      {convertTemp(
+                        view === "24H" ? day.temp : day.max,
+                        temperatureUnit
+                      )}
+                      °{temperatureUnit}
+                    </span>
+                    {view !== "24H" && (
+                      <span
+                        style={{
+                          opacity: 0.4,
+                          fontSize: "0.8em",
+                          marginLeft: "0.375rem",
+                        }}
+                      >
+                        {convertTemp(day.min, temperatureUnit)}°
+                        {temperatureUnit}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+        </footer>
       </div>
     </div>
   );

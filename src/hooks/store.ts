@@ -1,4 +1,5 @@
 import { createUseInstanceStoreState } from '@telemetryos/sdk/react'
+import { GLASS_GRADIENT } from '../views/WeatherDashboard';
 
 // Location Configuration
 export interface LocationConfig {
@@ -19,8 +20,8 @@ export const useTransitionStyleStoreState = createUseInstanceStoreState<'fade' |
 export const useForecastRangeStoreState = createUseInstanceStoreState<'24H' | '3D' | '1W'>('forecast-range', '3D')
 
 // Visual Customization
-export const useBackgroundTypeStoreState = createUseInstanceStoreState<'solid' | 'weather' | 'image'>('background-type', 'weather')
-export const useBackgroundColorStoreState = createUseInstanceStoreState<string>('background-color', '#2b6cb0')
+export const useBackgroundTypeStoreState = createUseInstanceStoreState<'solid' | 'weather' | 'image' | 'video'>('background-type', 'weather')
+export const useBackgroundColorStoreState = createUseInstanceStoreState<string>('background-color', GLASS_GRADIENT)
 export const useBackgroundImageStoreState = createUseInstanceStoreState<string>('background-image', '')
 export const useBackgroundOpacityStoreState = createUseInstanceStoreState<number>('background-opacity', 100) // 0-100
 export const useFontColorStoreState = createUseInstanceStoreState<string>('font-color', '#ffffff')

@@ -5,6 +5,7 @@ import { HeavyRainIcon } from "../icons/HeadyRain";
 import { ModeraterainIcon } from "../icons/ModerateRainIcon";
 import { SnowIcon } from "../icons/SnowIcon";
 import { BrokenCastIcon } from "../icons/BrokenCast";
+import { ClearSkyIcon } from "../icons/ClearSkyIcon";
 
 type WeatherIconProps = {
   size?: number;
@@ -15,6 +16,10 @@ export const weatherIcons: Record<
   string,
   (props?: WeatherIconProps) => React.ReactNode
 > = {
+  "1": ({ size = 100 } = {}) => (
+    // Broken clouds
+    <ClearSkyIcon size={size} />
+  ),
   "4": ({ size = 100 } = {}) => (
     // Broken clouds
     <BrokenCastIcon size={size} />
